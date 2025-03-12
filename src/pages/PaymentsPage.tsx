@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import { useApp } from '@/contexts/AppContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,9 +13,11 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
-import { DollarSign, CheckCircle } from 'lucide-react';
+import { DollarSign, CheckCircle, History } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import * as apiService from '@/services/apiService';
+import { MonthlyAmountConfig } from '@/types';
 
 interface UserPaymentStatus {
   [userId: string]: boolean;
@@ -86,11 +88,29 @@ const UserPaymentDialog: React.FC<{ userId: string, userName: string }> = ({ use
 };
 
 const PaymentsPage: React.FC = () => {
-  const { users, getUserPayments, formatCurrency, currentMonth, addPayment } = useApp();
+  const { users, getUserPayments, formatCurrency, currentMonth, formatMonth, addPayment, deletePayment } = useApp();
   const [paymentStatus, setPaymentStatus] = useState<UserPaymentStatus>({});
   const [monthlyAmount, setMonthlyAmount] = useState<string>('');
   const [configuredAmount, setConfiguredAmount] = useState<number>(0);
+  const [monthlyConfigs, setMonthlyConfigs] = useState<MonthlyAmountConfig[]>([]);
   const { toast } = useToast();
+
+  // Carregar configurações de valor mensal ao montar o componente
+  useEffect(() => {
+    const loadMonthlyConfigs = async () => {
+      const configs = await apiService.getMonthlyAmountConfigs();
+      setMonthlyConfigs(configs);
+      
+      // Se existe uma configuração para o mês atual, use-a
+      const currentConfig = configs.find(config => config.month === currentMonth);
+      if (currentConfig) {
+        setConfiguredAmount(currentConfig.amount);
+        setMonthlyAmount(currentConfig.amount.toFixed(2));
+      }
+    };
+    
+    loadMonthlyConfigs();
+  }, [currentMonth]);
 
   React.useEffect(() => {
     const newPaymentStatus: UserPaymentStatus = {};
@@ -110,13 +130,18 @@ const PaymentsPage: React.FC = () => {
       [userId]: newStatus
     }));
 
-    const paymentAmount = newStatus ? configuredAmount : 0;
-    addPayment(userId, paymentAmount);
+    if (!newStatus) {
+      // Se o status está mudando para "Pendente", remove todos os pagamentos do mês atual
+      const userPayments = getUserPayments(userId, currentMonth);
+      userPayments.forEach(payment => {
+        deletePayment(payment.id);
+      });
 
-    toast({
-      title: newStatus ? "Pagamento marcado" : "Pagamento desmarcado",
-      description: `${userName} foi ${newStatus ? "marcado" : "desmarcado"} como ${newStatus ? "pago" : "não pago"}.`
-    });
+      toast({
+        title: "Pagamentos removidos",
+        description: `Os pagamentos de ${userName} foram removidos.`
+      });
+    }
   };
 
   const getUserTotalPayments = (userId: string): number => {
@@ -130,14 +155,28 @@ const PaymentsPage: React.FC = () => {
     setMonthlyAmount(numericValue.toFixed(2));
   };
 
-  const handleApplyMonthlyAmount = () => {
+  const handleApplyMonthlyAmount = async () => {
     const amount = parseFloat(monthlyAmount);
     if (!isNaN(amount) && amount > 0) {
-      setConfiguredAmount(amount);
-      toast({
-        title: "Valor mensal configurado",
-        description: `O valor mensal foi configurado para ${formatCurrency(amount)}`
-      });
+      // Salvar a configuração no servidor
+      const newConfig: MonthlyAmountConfig = {
+        month: currentMonth,
+        amount: amount
+      };
+      
+      const savedConfig = await apiService.updateMonthlyAmountConfig(newConfig);
+      if (savedConfig) {
+        setConfiguredAmount(amount);
+        
+        // Atualizar a lista de configurações
+        const configs = await apiService.getMonthlyAmountConfigs();
+        setMonthlyConfigs(configs);
+        
+        toast({
+          title: "Valor mensal configurado",
+          description: `O valor mensal foi configurado para ${formatCurrency(amount)}`
+        });
+      }
     } else {
       toast({
         title: "Valor inválido",
@@ -149,90 +188,121 @@ const PaymentsPage: React.FC = () => {
 
   return (
     <Layout title="Pagamentos">
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Valor Mensal</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-2">
-            <div className="flex-1 relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                R$
-              </span>
-              <Input
-                type="text"
-                placeholder="0,00"
-                value={monthlyAmount}
-                onChange={handleMonthlyAmountChange}
-                className="pl-9"
-              />
+      <div className="grid gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Valor Mensal</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-2">
+              <div className="flex-1 relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  R$
+                </span>
+                <Input
+                  type="text"
+                  placeholder="0,00"
+                  value={monthlyAmount}
+                  onChange={handleMonthlyAmountChange}
+                  className="pl-9"
+                />
+              </div>
+              <Button 
+                onClick={handleApplyMonthlyAmount}
+                variant="secondary"
+              >
+                Aplicar
+              </Button>
             </div>
-            <Button 
-              onClick={handleApplyMonthlyAmount}
-              variant="secondary"
-            >
-              Aplicar
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Gerenciar Pagamentos</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {users.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Valor</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {users.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>{user.name}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center">
-                        <Switch
-                          checked={paymentStatus[user.id] || false}
-                          onCheckedChange={() => 
-                            handleTogglePaymentStatus(
-                              user.id,
-                              user.name,
-                              paymentStatus[user.id] || false
-                            )
-                          }
-                          className="mr-2"
-                        />
-                        <span className={paymentStatus[user.id] ? "text-green-500" : "text-red-500"}>
-                          {paymentStatus[user.id] ? "Pago" : "Pendente"}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {formatCurrency(getUserTotalPayments(user.id))}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end">
-                        <UserPaymentDialog userId={user.id} userName={user.name} />
-                      </div>
-                    </TableCell>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <History className="h-5 w-5" />
+              Histórico de Valores Mensais
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {monthlyConfigs.length > 0 ? (
+              <div className="space-y-2">
+                {monthlyConfigs
+                  .sort((a, b) => b.month.localeCompare(a.month))
+                  .map(config => (
+                    <div key={config.month} className="flex justify-between items-center p-2 border rounded">
+                      <span>{formatMonth(config.month)}</span>
+                      <span className="font-medium">
+                        {formatCurrency(config.amount)}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-center py-2">
+                Nenhum valor mensal configurado.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Gerenciar Pagamentos</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {users.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Valor</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <p className="text-center py-4 text-muted-foreground">
-              Nenhum usuário cadastrado. Adicione um usuário na aba Usuários.
-            </p>
-          )}
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {users.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell>{user.name}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center">
+                          <Switch
+                            checked={paymentStatus[user.id] || false}
+                            onCheckedChange={() => 
+                              handleTogglePaymentStatus(
+                                user.id,
+                                user.name,
+                                paymentStatus[user.id] || false
+                              )
+                            }
+                            className="mr-2"
+                          />
+                          <span className={paymentStatus[user.id] ? "text-green-500" : "text-red-500"}>
+                            {paymentStatus[user.id] ? "Pago" : "Pendente"}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {formatCurrency(getUserTotalPayments(user.id))}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end">
+                          <UserPaymentDialog userId={user.id} userName={user.name} />
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <p className="text-center py-4 text-muted-foreground">
+                Nenhum usuário cadastrado. Adicione um usuário na aba Usuários.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </Layout>
   );
 };

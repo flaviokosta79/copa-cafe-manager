@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   name: string;
@@ -27,4 +26,9 @@ export interface MonthlyBalance {
   totalPayments: number;
   totalProducts: number;
   balance: number; // Diferença entre pagamentos e produtos
+}
+
+export interface MonthlyAmountConfig {
+  month: string;
+  amount: number;
 }

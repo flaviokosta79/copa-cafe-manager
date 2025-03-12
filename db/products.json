@@ -1,0 +1,18 @@
+[
+  {
+    "id": "aaa02bdb-0dfe-4dff-af13-ae818b896941",
+    "name": "Café",
+    "price": 25,
+    "quantity": 4,
+    "date": "2025-03-12T20:26:08.541Z",
+    "month": "2025-03"
+  },
+  {
+    "id": "dbb890d3-bd11-446e-a105-5d0af5b92330",
+    "name": "Açucar",
+    "price": 4,
+    "quantity": 5,
+    "date": "2025-03-12T20:26:36.227Z",
+    "month": "2025-03"
+  }
+]

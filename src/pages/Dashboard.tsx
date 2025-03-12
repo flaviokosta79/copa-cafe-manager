@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Layout from '@/components/Layout';
 import { useApp } from '@/contexts/AppContext';
@@ -9,33 +8,101 @@ import { ArrowUpIcon, ArrowDownIcon, DollarSign, ShoppingBag, Users, CreditCard,
 const Dashboard: React.FC = () => {
   const { 
     users, 
+    products,
+    payments,
     monthlyBalances, 
     formatMonth, 
     formatCurrency, 
     currentMonth, 
     setCurrentMonth,
-    getMonthlyPaymentsTotal,
-    getMonthlyProductsTotal,
     getUserPayments
   } = useApp();
   
-  // Encontrar o saldo do mês atual
-  const currentMonthBalance = monthlyBalances.find(balance => balance.month === currentMonth);
+  // Debug: Imprimir estado inicial
+  console.log('Estado inicial:', {
+    users: users.length,
+    payments: payments.length,
+    products: products.length,
+    monthlyBalances: monthlyBalances.length,
+    currentMonth
+  });
+
+  // Verificar se há dados ativos no sistema
+  const hasActiveData = users.length > 0 || payments.length > 0;
+  console.log('hasActiveData:', hasActiveData);
   
-  // Calcular totais para o mês atual
+  // Encontrar o saldo do mês atual (apenas se houver dados ativos)
+  const currentMonthBalance = monthlyBalances.find(balance => balance.month === currentMonth);
+  console.log('currentMonthBalance:', currentMonthBalance);
+  
+  // Calcular totaais diretamente dos pagamentos e produtos
+  console.log('Calculando totais...');
+  console.log('Array de pagamentos:', JSON.stringify(payments, null, 2));
+  
+  const totalPayments = payments
+    .filter(payment => {
+      const isCurrentMonth = payment.month === currentMonth;
+      console.log(`Verificando pagamento ${payment.id}:`, {
+        month: payment.month,
+        currentMonth,
+        isCurrentMonth,
+        amount: payment.amount
+      });
+      return isCurrentMonth;
+    })
+    .reduce((sum, payment) => {
+      console.log(`Somando pagamento ${payment.id}:`, payment.amount);
+      return sum + payment.amount;
+    }, 0);
+
+  console.log('Total final de pagamentos:', totalPayments);
+
+  const totalProducts = products
+    .filter(product => {
+      const isCurrentMonth = product.month === currentMonth;
+      console.log(`Verificando produto ${product.id}:`, {
+        month: product.month,
+        currentMonth,
+        isCurrentMonth,
+        total: product.price * product.quantity
+      });
+      return isCurrentMonth;
+    })
+    .reduce((sum, product) => {
+      console.log(`Somando produto ${product.id}:`, product.price * product.quantity);
+      return sum + (product.price * product.quantity);
+    }, 0);
+
+  console.log('Total final de produtos:', totalProducts);
+
+  // Calcular totais diretamente dos pagamentos e produtos
   const totalUsers = users.length;
-  const payingUsers = users.filter(user => getUserPayments(user.id, currentMonth).length > 0).length;
+  console.log('Total de usuários:', totalUsers);
+  
+  const payingUsers = users.filter(user => {
+    const hasPayments = getUserPayments(user.id, currentMonth).length > 0;
+    console.log(`Verificando pagamentos do usuário ${user.id}:`, {
+      name: user.name,
+      hasPayments,
+      payments: getUserPayments(user.id, currentMonth)
+    });
+    return hasPayments;
+  }).length;
+  
+  console.log('Usuários pagantes:', payingUsers);
   const nonPayingUsers = totalUsers - payingUsers;
-  const totalPayments = getMonthlyPaymentsTotal(currentMonth);
-  const totalProducts = getMonthlyProductsTotal(currentMonth);
-  const balance = currentMonthBalance?.balance || 0;
+  console.log('Usuários não pagantes:', nonPayingUsers);
+
+  // Calcular o saldo com base nos totais calculados
+  const balance = totalPayments - totalProducts;
+  console.log('Saldo final:', balance);
   
   // Lista de meses disponíveis (atuais e anteriores)
   const availableMonths = Array.from(new Set([
     ...monthlyBalances.map(balance => balance.month),
     currentMonth
   ])).sort().reverse();
-  
+
   return (
     <Layout title="Dashboard">
       <div className="mb-4 flex justify-end">
