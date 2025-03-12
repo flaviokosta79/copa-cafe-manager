@@ -14,8 +14,8 @@ import {
   TableRow 
 } from '@/components/ui/table';
 import { DollarSign, CheckCircle } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 interface UserPaymentStatus {
   [userId: string]: boolean;
@@ -89,6 +89,7 @@ const PaymentsPage: React.FC = () => {
   const { users, getUserPayments, formatCurrency, currentMonth, addPayment } = useApp();
   const [paymentStatus, setPaymentStatus] = useState<UserPaymentStatus>({});
   const [monthlyAmount, setMonthlyAmount] = useState<string>('');
+  const [configuredAmount, setConfiguredAmount] = useState<number>(0);
   const { toast } = useToast();
 
   React.useEffect(() => {
@@ -103,17 +104,18 @@ const PaymentsPage: React.FC = () => {
   }, [users, getUserPayments, currentMonth]);
 
   const handleTogglePaymentStatus = (userId: string, userName: string, currentStatus: boolean) => {
+    const newStatus = !currentStatus;
     setPaymentStatus(prev => ({
       ...prev,
-      [userId]: !currentStatus
+      [userId]: newStatus
     }));
 
-    const paymentAmount = !currentStatus ? parseFloat(monthlyAmount) || 0 : 0;
+    const paymentAmount = newStatus ? configuredAmount : 0;
     addPayment(userId, paymentAmount);
 
     toast({
-      title: currentStatus ? "Pagamento desmarcado" : "Pagamento marcado",
-      description: `${userName} foi ${currentStatus ? "desmarcado" : "marcado"} como ${currentStatus ? "não pago" : "pago"}.`
+      title: newStatus ? "Pagamento marcado" : "Pagamento desmarcado",
+      description: `${userName} foi ${newStatus ? "marcado" : "desmarcado"} como ${newStatus ? "pago" : "não pago"}.`
     });
   };
 
@@ -123,9 +125,25 @@ const PaymentsPage: React.FC = () => {
   };
 
   const handleMonthlyAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    if (!value || /^\d*\.?\d{0,2}$/.test(value)) {
-      setMonthlyAmount(value);
+    const value = e.target.value.replace(/\D/g, '');
+    const numericValue = value ? parseInt(value) / 100 : 0;
+    setMonthlyAmount(numericValue.toFixed(2));
+  };
+
+  const handleApplyMonthlyAmount = () => {
+    const amount = parseFloat(monthlyAmount);
+    if (!isNaN(amount) && amount > 0) {
+      setConfiguredAmount(amount);
+      toast({
+        title: "Valor mensal configurado",
+        description: `O valor mensal foi configurado para ${formatCurrency(amount)}`
+      });
+    } else {
+      toast({
+        title: "Valor inválido",
+        description: "Por favor, informe um valor válido maior que zero.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -136,17 +154,26 @@ const PaymentsPage: React.FC = () => {
           <CardTitle>Valor Mensal</CardTitle>
         </CardHeader>
         <CardContent>
-          <form className="flex gap-2">
-            <Input
-              type="number"
-              step="0.01"
-              min="0"
-              placeholder="Valor mensal por usuário"
-              value={monthlyAmount}
-              onChange={handleMonthlyAmountChange}
-              className="flex-1"
-            />
-          </form>
+          <div className="flex gap-2">
+            <div className="flex-1 relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                R$
+              </span>
+              <Input
+                type="text"
+                placeholder="0,00"
+                value={monthlyAmount}
+                onChange={handleMonthlyAmountChange}
+                className="pl-9"
+              />
+            </div>
+            <Button 
+              onClick={handleApplyMonthlyAmount}
+              variant="secondary"
+            >
+              Aplicar
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
