@@ -8,6 +8,7 @@ import { AppProvider } from "@/contexts/AppContext";
 import Dashboard from "./pages/Dashboard";
 import UsersPage from "./pages/UsersPage";
 import ProductsPage from "./pages/ProductsPage";
+import PaymentsPage from "./pages/PaymentsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -23,6 +24,7 @@ const App = () => (
             <Route path="/" element={<Dashboard />} />
             <Route path="/users" element={<UsersPage />} />
             <Route path="/products" element={<ProductsPage />} />
+            <Route path="/payments" element={<PaymentsPage />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

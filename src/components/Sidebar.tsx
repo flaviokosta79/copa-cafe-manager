@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { CoffeeIcon, UsersIcon, ShoppingCartIcon, BarChartIcon, Menu } from 'lucide-react';
+import { CoffeeIcon, UsersIcon, ShoppingCartIcon, BarChartIcon, DollarSign, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -37,6 +37,7 @@ const SidebarContent: React.FC = () => {
   const routes = [
     { path: '/', label: 'Dashboard', icon: <BarChartIcon size={20} /> },
     { path: '/users', label: 'Usuários', icon: <UsersIcon size={20} /> },
+    { path: '/payments', label: 'Pagamentos', icon: <DollarSign size={20} /> },
     { path: '/products', label: 'Produtos', icon: <ShoppingCartIcon size={20} /> },
   ];
   

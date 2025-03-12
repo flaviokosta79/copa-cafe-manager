@@ -14,72 +14,8 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
-import { PlusIcon, TrashIcon, DollarSign } from 'lucide-react';
+import { PlusIcon, TrashIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-
-const UserPaymentDialog: React.FC<{ userId: string, userName: string }> = ({ userId, userName }) => {
-  const { addPayment, formatCurrency } = useApp();
-  const [amount, setAmount] = useState<string>('');
-  const [isOpen, setIsOpen] = useState(false);
-  const { toast } = useToast();
-  
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const paymentAmount = parseFloat(amount);
-    
-    if (isNaN(paymentAmount) || paymentAmount <= 0) {
-      toast({
-        title: "Valor inválido",
-        description: "Por favor, informe um valor positivo.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    addPayment(userId, paymentAmount);
-    setAmount('');
-    setIsOpen(false);
-    
-    toast({
-      title: "Pagamento registrado",
-      description: `Pagamento de ${formatCurrency(paymentAmount)} para ${userName} foi registrado com sucesso.`
-    });
-  };
-  
-  return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button size="icon" variant="outline">
-          <DollarSign className="h-4 w-4" />
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Registrar Pagamento para {userName}</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-          <div className="space-y-2">
-            <label htmlFor="amount" className="text-sm font-medium">
-              Valor do Pagamento (R$)
-            </label>
-            <Input
-              id="amount"
-              type="number"
-              step="0.01"
-              min="0.01"
-              placeholder="0.00"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              required
-            />
-          </div>
-          <Button type="submit" className="w-full">Registrar Pagamento</Button>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-};
 
 const UserPaymentsDialog: React.FC<{ userId: string, userName: string }> = ({ userId, userName }) => {
   const { getUserPayments, formatCurrency, currentMonth } = useApp();
@@ -130,7 +66,7 @@ const UserPaymentsDialog: React.FC<{ userId: string, userName: string }> = ({ us
 };
 
 const UsersPage: React.FC = () => {
-  const { users, addUser, deleteUser, formatCurrency } = useApp();
+  const { users, addUser, deleteUser, formatCurrency, getUserPayments, currentMonth } = useApp();
   const [newUserName, setNewUserName] = useState('');
   const { toast } = useToast();
   
@@ -162,6 +98,12 @@ const UsersPage: React.FC = () => {
       title: "Usuário removido",
       description: `Usuário "${userName}" foi removido com sucesso.`
     });
+  };
+  
+  // Função para calcular o total de pagamentos de um usuário no mês atual
+  const getUserTotalPayments = (userId: string): number => {
+    const payments = getUserPayments(userId, currentMonth);
+    return payments.reduce((total, payment) => total + payment.amount, 0);
   };
   
   return (
@@ -197,8 +139,8 @@ const UsersPage: React.FC = () => {
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>Saldo</TableHead>
-                  <TableHead className="text-center">Pagamentos</TableHead>
-                  <TableHead className="text-center">Ações</TableHead>
+                  <TableHead>Pagamentos</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -208,20 +150,20 @@ const UsersPage: React.FC = () => {
                     <TableCell className={user.balance >= 0 ? 'text-green-500' : 'text-red-500'}>
                       {formatCurrency(user.balance)}
                     </TableCell>
-                    <TableCell className="text-center">
+                    <TableCell>
+                      <span className="font-medium">
+                        {formatCurrency(getUserTotalPayments(user.id))}
+                      </span>
                       <UserPaymentsDialog userId={user.id} userName={user.name} />
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <UserPaymentDialog userId={user.id} userName={user.name} />
-                        <Button
-                          size="icon"
-                          variant="destructive"
-                          onClick={() => handleDeleteUser(user.id, user.name)}
-                        >
-                          <TrashIcon className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      <Button
+                        size="icon"
+                        variant="destructive"
+                        onClick={() => handleDeleteUser(user.id, user.name)}
+                      >
+                        <TrashIcon className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
