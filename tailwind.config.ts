@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,6 +62,21 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				// Copa Café custom colors
+				cafe: {
+					brown: {
+						light: "#A67C52",
+						DEFAULT: "#7D5A3C",
+						dark: "#593D29"
+					},
+					green: {
+						light: "#8AB17D",
+						DEFAULT: "#5E8C4E",
+						dark: "#3E5F33"
+					},
+					cream: "#F5F0E6",
+					beige: "#E6D8C3"
 				}
 			},
 			borderRadius: {
