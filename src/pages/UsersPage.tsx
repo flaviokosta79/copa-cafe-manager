@@ -138,7 +138,6 @@ const UsersPage: React.FC = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nome</TableHead>
-                  <TableHead>Saldo</TableHead>
                   <TableHead>Pagamentos</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -147,9 +146,6 @@ const UsersPage: React.FC = () => {
                 {users.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell>{user.name}</TableCell>
-                    <TableCell className={user.balance >= 0 ? 'text-green-500' : 'text-red-500'}>
-                      {formatCurrency(user.balance)}
-                    </TableCell>
                     <TableCell>
                       <span className="font-medium">
                         {formatCurrency(getUserTotalPayments(user.id))}

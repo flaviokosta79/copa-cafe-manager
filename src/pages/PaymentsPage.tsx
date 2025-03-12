@@ -115,6 +115,12 @@ const PaymentsPage: React.FC = () => {
     });
   };
   
+  // Função para calcular o total de pagamentos de um usuário no mês atual
+  const getUserTotalPayments = (userId: string): number => {
+    const payments = getUserPayments(userId, currentMonth);
+    return payments.reduce((total, payment) => total + payment.amount, 0);
+  };
+  
   return (
     <Layout title="Pagamentos">
       <Card>
@@ -128,6 +134,7 @@ const PaymentsPage: React.FC = () => {
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Valor</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -152,6 +159,9 @@ const PaymentsPage: React.FC = () => {
                           {paymentStatus[user.id] ? "Pago" : "Pendente"}
                         </span>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      {formatCurrency(getUserTotalPayments(user.id))}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end">

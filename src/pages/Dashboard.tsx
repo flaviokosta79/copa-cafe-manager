@@ -4,7 +4,7 @@ import Layout from '@/components/Layout';
 import { useApp } from '@/contexts/AppContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowUpIcon, ArrowDownIcon, DollarSign, ShoppingBag, Users, CreditCard } from 'lucide-react';
+import { ArrowUpIcon, ArrowDownIcon, DollarSign, ShoppingBag, Users, CreditCard, CheckCircle, XCircle } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
   const { 
@@ -15,7 +15,8 @@ const Dashboard: React.FC = () => {
     currentMonth, 
     setCurrentMonth,
     getMonthlyPaymentsTotal,
-    getMonthlyProductsTotal
+    getMonthlyProductsTotal,
+    getUserPayments
   } = useApp();
   
   // Encontrar o saldo do mês atual
@@ -23,6 +24,8 @@ const Dashboard: React.FC = () => {
   
   // Calcular totais para o mês atual
   const totalUsers = users.length;
+  const payingUsers = users.filter(user => getUserPayments(user.id, currentMonth).length > 0).length;
+  const nonPayingUsers = totalUsers - payingUsers;
   const totalPayments = getMonthlyPaymentsTotal(currentMonth);
   const totalProducts = getMonthlyProductsTotal(currentMonth);
   const balance = currentMonthBalance?.balance || 0;
@@ -58,9 +61,19 @@ const Dashboard: React.FC = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center">
-              <Users className="mr-2 h-4 w-4 text-muted-foreground" />
-              <div className="text-2xl font-bold">{totalUsers}</div>
+            <div className="flex flex-col">
+              <div className="flex items-center">
+                <Users className="mr-2 h-4 w-4 text-muted-foreground" />
+                <div className="text-2xl font-bold">{totalUsers}</div>
+              </div>
+              <div className="flex items-center mt-2">
+                <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+                <div className="text-sm">Pagantes: <span className="font-medium">{payingUsers}</span></div>
+              </div>
+              <div className="flex items-center mt-1">
+                <XCircle className="mr-2 h-4 w-4 text-red-500" />
+                <div className="text-sm">Não pagantes: <span className="font-medium">{nonPayingUsers}</span></div>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -117,19 +130,26 @@ const Dashboard: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Usuários e Saldos</CardTitle>
+            <CardTitle>Usuários e Status</CardTitle>
           </CardHeader>
           <CardContent>
             {users.length > 0 ? (
               <div className="space-y-2">
-                {users.map(user => (
-                  <div key={user.id} className="flex justify-between items-center p-2 border rounded">
-                    <span>{user.name}</span>
-                    <span className={user.balance >= 0 ? 'text-green-500' : 'text-red-500'}>
-                      {formatCurrency(user.balance)}
-                    </span>
-                  </div>
-                ))}
+                {users.map(user => {
+                  const hasPaid = getUserPayments(user.id, currentMonth).length > 0;
+                  return (
+                    <div key={user.id} className="flex justify-between items-center p-2 border rounded">
+                      <span>{user.name}</span>
+                      <span className={hasPaid ? 'text-green-500 flex items-center' : 'text-red-500 flex items-center'}>
+                        {hasPaid ? (
+                          <>Pago <CheckCircle className="ml-1 h-4 w-4" /></>
+                        ) : (
+                          <>Pendente <XCircle className="ml-1 h-4 w-4" /></>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <p className="text-muted-foreground">Nenhum usuário cadastrado.</p>
