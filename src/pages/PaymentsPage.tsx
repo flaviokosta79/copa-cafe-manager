@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Layout from '@/components/Layout';
 import { useApp } from '@/contexts/AppContext';
@@ -87,11 +86,11 @@ const UserPaymentDialog: React.FC<{ userId: string, userName: string }> = ({ use
 };
 
 const PaymentsPage: React.FC = () => {
-  const { users, getUserPayments, formatCurrency, currentMonth } = useApp();
+  const { users, getUserPayments, formatCurrency, currentMonth, addPayment } = useApp();
   const [paymentStatus, setPaymentStatus] = useState<UserPaymentStatus>({});
+  const [monthlyAmount, setMonthlyAmount] = useState<string>('');
   const { toast } = useToast();
-  
-  // Verificar usuários que já fizeram pagamentos no mês atual
+
   React.useEffect(() => {
     const newPaymentStatus: UserPaymentStatus = {};
     
@@ -102,27 +101,55 @@ const PaymentsPage: React.FC = () => {
     
     setPaymentStatus(newPaymentStatus);
   }, [users, getUserPayments, currentMonth]);
-  
+
   const handleTogglePaymentStatus = (userId: string, userName: string, currentStatus: boolean) => {
     setPaymentStatus(prev => ({
       ...prev,
-      [userId]: !prev[userId]
+      [userId]: !currentStatus
     }));
-    
+
+    const paymentAmount = !currentStatus ? parseFloat(monthlyAmount) || 0 : 0;
+    addPayment(userId, paymentAmount);
+
     toast({
       title: currentStatus ? "Pagamento desmarcado" : "Pagamento marcado",
       description: `${userName} foi ${currentStatus ? "desmarcado" : "marcado"} como ${currentStatus ? "não pago" : "pago"}.`
     });
   };
-  
-  // Função para calcular o total de pagamentos de um usuário no mês atual
+
   const getUserTotalPayments = (userId: string): number => {
     const payments = getUserPayments(userId, currentMonth);
     return payments.reduce((total, payment) => total + payment.amount, 0);
   };
-  
+
+  const handleMonthlyAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (!value || /^\d*\.?\d{0,2}$/.test(value)) {
+      setMonthlyAmount(value);
+    }
+  };
+
   return (
     <Layout title="Pagamentos">
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Valor Mensal</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form className="flex gap-2">
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="Valor mensal por usuário"
+              value={monthlyAmount}
+              onChange={handleMonthlyAmountChange}
+              className="flex-1"
+            />
+          </form>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Gerenciar Pagamentos</CardTitle>
