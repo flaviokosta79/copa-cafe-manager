@@ -1,11 +1,11 @@
 import { User, Payment, Product, MonthlyBalance, MonthlyAmountConfig } from '@/types';
 
-const API_URL = 'http://localhost:3002/api';
+const API_URL = "/.netlify/functions";
 
 // Funções para gerenciar usuários
 export const getUsers = async (): Promise<User[]> => {
   try {
-    const response = await fetch(`${API_URL}/users`);
+    const response = await fetch(`${API_URL}/getUsers`);
     if (!response.ok) throw new Error('Falha ao obter usuários');
     return response.json();
   } catch (error) {
@@ -16,43 +16,31 @@ export const getUsers = async (): Promise<User[]> => {
 
 export const addUser = async (user: User): Promise<User | null> => {
   try {
-    const response = await fetch(`${API_URL}/users`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(user)
+    const response = await fetch(`${API_URL}/addUser`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(user),
     });
-    if (!response.ok) throw new Error('Falha ao adicionar usuário');
+    if (!response.ok) throw new Error("Falha ao adicionar usuário");
     return response.json();
   } catch (error) {
-    console.error('Erro ao adicionar usuário:', error);
+    console.error("Erro ao adicionar usuário:", error);
     return null;
   }
 };
 
-export const updateUser = async (user: User): Promise<User | null> => {
-  try {
-    const response = await fetch(`${API_URL}/users/${user.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(user)
-    });
-    if (!response.ok) throw new Error('Falha ao atualizar usuário');
-    return response.json();
-  } catch (error) {
-    console.error('Erro ao atualizar usuário:', error);
-    return null;
-  }
-};
 
 export const deleteUser = async (userId: string): Promise<boolean> => {
   try {
-    const response = await fetch(`${API_URL}/users/${userId}`, {
-      method: 'DELETE'
+    const response = await fetch(`${API_URL}/deleteUser`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
     });
-    if (!response.ok) throw new Error('Falha ao excluir usuário');
+    if (!response.ok) throw new Error("Falha ao excluir usuário");
     return true;
   } catch (error) {
-    console.error('Erro ao excluir usuário:', error);
+    console.error("Erro ao excluir usuário:", error);
     return false;
   }
 };
