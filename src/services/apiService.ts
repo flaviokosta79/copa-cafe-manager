@@ -29,7 +29,6 @@ export const addUser = async (user: User): Promise<User | null> => {
   }
 };
 
-
 export const deleteUser = async (userId: string): Promise<boolean> => {
   try {
     const response = await fetch(`${API_URL}/deleteUser`, {
@@ -284,3 +283,7 @@ export const formatCurrency = (value: number): string => {
 export function migrateFromLocalStorage() {
   throw new Error('Function not implemented.');
 }
+export function updateUser(updatedUser: User) {
+  throw new Error('Function not implemented.');
+}
+

@@ -37,6 +37,9 @@ interface AppContextType {
   getMonthlyPaymentsTotal: (month: string) => number;
   getMonthlyProductsTotal: (month: string) => number;
   getUserPayments: (userId: string, month?: string) => Payment[];
+  
+  // Ações admin
+  resetAllData: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -117,9 +120,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // Função para migrar dados do localStorage para os arquivos
   const migrateFromLocalStorage = async () => {
     try {
-      const success = await apiService.migrateFromLocalStorage();
+      await apiService.migrateFromLocalStorage();
       
-      if (success) {
+      // Check if data exists after migration
+      const usersExist = (await apiService.getUsers()).length > 0;
+      if (usersExist) {
         const [usersData, paymentsData, productsData, balancesData] = await Promise.all([
           apiService.getUsers(),
           apiService.getPayments(),
