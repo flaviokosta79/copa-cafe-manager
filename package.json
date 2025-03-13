@@ -1,15 +1,14 @@
 {
   "name": "copacafe-manager",
-  "private": true,
   "version": "1.0.0",
   "type": "commonjs",
+  "private": true,
   "scripts": {
-    "dev": "vite",
-    "server": "node server.js",
-    "dev:all": "concurrently \"npm run dev\" \"npm run server\"",
+    "dev": "vite", 
     "build": "vite build",
-    "build:dev": "vite build --mode development",
-    "start": "node server.js",
+    "server": "node server.js", 
+    "start": "NODE_ENV=production node server.js", 
+    "dev:all": "concurrently \"npm run dev\" \"npm run server\"",
     "lint": "eslint .",
     "preview": "vite preview"
   },

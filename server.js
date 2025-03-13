@@ -431,12 +431,12 @@ if (NODE_ENV === 'production') {
 }
 
 // Inicia o servidor
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor rodando na porta ${PORT} em modo ${NODE_ENV}`);
-  console.log(`API disponível em: http://localhost:${PORT}/api`);
+  console.log(`API disponível em: https://copacafe.5cpa.com.br/api`);
   if (NODE_ENV === 'development') {
     console.log(`Interface web disponível em: http://localhost:8080`);
   } else {
-    console.log(`Interface web disponível em: http://localhost:${PORT}`);
+    console.log(`Interface web disponível em: https://copacafe.5cpa.com.br`);
   }
 });

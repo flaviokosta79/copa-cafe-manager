@@ -1,6 +1,6 @@
 import { User, Payment, Product, MonthlyBalance, MonthlyAmountConfig } from '@/types';
 
-const API_URL = 'http://localhost:3002/api';
+export const API_URL = 'https://copacafe.5cpa.com.br/api';
 
 // Funções para gerenciar usuários
 export const getUsers = async (): Promise<User[]> => {
