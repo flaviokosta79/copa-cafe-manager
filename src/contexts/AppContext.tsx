@@ -56,7 +56,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setIsLoading(true);
       try {
         console.log('Iniciando carregamento de dados...');
-        console.log('Mês atual:', currentMonth);
+        
+        // Inicializa o mês atual se não estiver definido
+        if (!currentMonth) {
+          const initialMonth = apiService.getCurrentMonth();
+          setCurrentMonth(initialMonth);
+        }
         
         const [usersData, paymentsData, productsData, balancesData] = await Promise.all([
           apiService.getUsers(),
@@ -64,6 +69,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           apiService.getProducts(),
           apiService.getMonthlyBalances()
         ]);
+
+        // Se não houver saldos mensais e houver dados, inicializa com o mês atual
+        if (balancesData.length === 0 && (usersData.length > 0 || productsData.length > 0)) {
+          const initialBalance = {
+            month: currentMonth,
+            totalPayments: 0,
+            totalProducts: 0,
+            balance: 0
+          };
+          await apiService.updateMonthlyBalance(initialBalance);
+          balancesData.push(initialBalance);
+        }
 
         console.log('Dados carregados:', {
           users: usersData.length,

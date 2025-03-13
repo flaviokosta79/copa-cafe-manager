@@ -243,18 +243,18 @@ export const verifyAdminPassword = async (password: string): Promise<boolean> =>
   }
 };
 
-export const getAdminConfig = async (): Promise<{ adminPassword: string, pix: { key: string, type: 'cpf' | 'celular' | 'email' | 'aleatoria' } }> => {
+export const getAdminConfig = async (): Promise<{ pix?: { key: string; type: 'cpf' | 'celular' | 'email' | 'aleatoria'; managerName: string } }> => {
   try {
     const response = await fetch(`${API_URL}/admin-config`);
     if (!response.ok) throw new Error('Falha ao obter configurações do administrador');
     return response.json();
   } catch (error) {
     console.error('Erro ao buscar configurações do administrador:', error);
-    return { adminPassword: "", pix: { key: "", type: "cpf" } };
+    return { pix: { key: "", type: "cpf", managerName: "" } };
   }
 };
 
-export const updateAdminConfig = async (config: { pix: { key: string, type: 'cpf' | 'celular' | 'email' | 'aleatoria' } }): Promise<boolean> => {
+export const updateAdminConfig = async (config: { pix: { key: string; type: 'cpf' | 'celular' | 'email' | 'aleatoria'; managerName: string } }): Promise<boolean> => {
   try {
     const response = await fetch(`${API_URL}/admin-config`, {
       method: 'POST',

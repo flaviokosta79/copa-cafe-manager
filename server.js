@@ -104,18 +104,22 @@ app.get('/api/admin-config', (req, res) => {
       
       // Se não tiver configuração de PIX, inicializa com valores padrão
       if (!adminConfig.pix) {
-        adminConfig.pix = { key: "", type: "cpf" };
+        adminConfig.pix = { key: "", type: "cpf", managerName: "" };
       }
       // Se tiver só a string do PIX, converte para o novo formato
       else if (typeof adminConfig.pix === 'string') {
-        adminConfig.pix = { key: adminConfig.pix, type: "cpf" };
+        adminConfig.pix = { key: adminConfig.pix, type: "cpf", managerName: "" };
+      }
+      // Se não tiver managerName, adiciona
+      else if (!adminConfig.pix.managerName) {
+        adminConfig.pix.managerName = "";
       }
       
       // Retorna uma cópia sem a senha
       const { adminPassword, ...safeConfig } = adminConfig;
       res.json(safeConfig);
     } else {
-      res.json({ pix: { key: "", type: "cpf" } });
+      res.json({ pix: { key: "", type: "cpf", managerName: "" } });
     }
   } catch (error) {
     console.error('Erro ao obter configurações do administrador:', error);
@@ -128,9 +132,9 @@ app.post('/api/admin-config', (req, res) => {
   try {
     const { pix } = req.body;
     
-    // Valida o tipo do PIX
+    // Valida o tipo do PIX e campos obrigatórios
     const validTypes = ['cpf', 'celular', 'email', 'aleatoria'];
-    if (!pix || !pix.key || !pix.type || !validTypes.includes(pix.type)) {
+    if (!pix || !pix.key || !pix.type || !validTypes.includes(pix.type) || !pix.managerName) {
       return res.status(400).json({ error: 'Configuração de PIX inválida' });
     }
     

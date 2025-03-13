@@ -29,7 +29,11 @@ const Dashboard: React.FC = () => {
     getUserPayments
   } = useApp();
   const { toast } = useToast();
-  const [pixConfig, setPixConfig] = useState<PixConfig>({ key: '', type: 'cpf' });
+  const [pixConfig, setPixConfig] = useState<PixConfig>({ 
+    key: '', 
+    type: 'cpf',
+    managerName: '' 
+  });
 
   // Debug: Imprimir estado inicial
   console.log('Estado inicial:', {
@@ -63,10 +67,13 @@ const Dashboard: React.FC = () => {
     .reduce((acc, curr) => acc + (curr.price * curr.quantity), 0);
   const balance = totalPayments - totalProducts;
 
-  // Ordenar meses em ordem decrescente
-  const sortedMonths = [...monthlyBalances]
-    .sort((a, b) => b.month.localeCompare(a.month))
-    .map(mb => mb.month);
+  // Ordenar meses em ordem decrescente e garantir que o mês atual esteja na lista
+  const allMonths = new Set([
+    ...monthlyBalances.map(mb => mb.month),
+    currentMonth // Adiciona o mês atual à lista
+  ]);
+  const sortedMonths = [...allMonths]
+    .sort((a, b) => b.localeCompare(a));
 
   const handleCopyPix = () => {
     navigator.clipboard.writeText(pixConfig.key);
@@ -110,11 +117,11 @@ const Dashboard: React.FC = () => {
               </div>
               <div className="flex items-center mt-2">
                 <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
-                <div className="text-sm">Pagantes: <span className="font-medium">{payingUsers}</span></div>
+                <div className="text-sm">Já Pagaram: <span className="font-medium">{payingUsers}</span></div>
               </div>
               <div className="flex items-center mt-1">
                 <XCircle className="mr-2 h-4 w-4 text-red-500" />
-                <div className="text-sm">Não pagantes: <span className="font-medium">{nonPayingUsers}</span></div>
+                <div className="text-sm">Ainda Não pagaram: <span className="font-medium">{nonPayingUsers}</span></div>
               </div>
             </div>
           </CardContent>
@@ -230,20 +237,25 @@ const Dashboard: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="flex flex-col items-center space-y-4 p-4 border rounded">
-              <div className="flex items-center gap-2">
-                <span className="text-lg text-muted-foreground">{PIX_TYPE_LABELS[pixConfig.type]}:</span>
+              {pixConfig.managerName && (
+                <div className="flex flex-col items-center gap-2 text-center">
+                  <span className="text-lg font-medium">{pixConfig.managerName}</span>
               </div>
-              <div className="flex items-center gap-4">
-                <span className="text-lg font-medium">{pixConfig.key}</span>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={handleCopyPix}
-                  className="gap-2"
-                >
-                  <Copy className="h-4 w-4" />
-                  Copiar
-                </Button>
+              )}
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-lg text-muted-foreground">{pixConfig.type}:</span>
+                <div className="flex items-center gap-4">
+                  <span className="text-lg font-medium">{pixConfig.key}</span>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={handleCopyPix}
+                    className="gap-2"
+                  >
+                    <Copy className="h-4 w-4" />
+                    Copiar
+                  </Button>
+                </div>
               </div>
             </div>
           </CardContent>

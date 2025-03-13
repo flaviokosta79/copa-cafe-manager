@@ -37,5 +37,6 @@ export type PixKeyType = 'cpf' | 'celular' | 'email' | 'aleatoria';
 
 export interface PixConfig {
   key: string;
-  type: PixKeyType;
+  type: 'cpf' | 'celular' | 'email' | 'aleatoria';
+  managerName: string;
 }

@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
@@ -99,7 +100,11 @@ const PaymentsPage: React.FC = () => {
   const [monthlyAmount, setMonthlyAmount] = useState<string>('');
   const [configuredAmount, setConfiguredAmount] = useState<number>(0);
   const [monthlyConfigs, setMonthlyConfigs] = useState<MonthlyAmountConfig[]>([]);
-  const [pixConfig, setPixConfig] = useState<PixConfig>({ key: '', type: 'cpf' });
+  const [pixConfig, setPixConfig] = useState<PixConfig>({ 
+    key: '',
+    type: 'cpf',
+    managerName: ''
+  });
   const { toast } = useToast();
 
   // Carregar configurações de valor mensal e PIX ao montar o componente
@@ -275,17 +280,34 @@ const PaymentsPage: React.FC = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col gap-4">
-              <div className="flex gap-4">
-                <div className="w-48">
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="managerName">Nome do Gerente</Label>
+                  <Input
+                    id="managerName"
+                    value={pixConfig.managerName}
+                    onChange={(e) => setPixConfig(prev => ({ ...prev, managerName: e.target.value }))}
+                    placeholder="Nome completo do gerente"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="pixKey">Chave PIX</Label>
+                  <Input
+                    id="pixKey"
+                    value={pixConfig.key}
+                    onChange={(e) => setPixConfig(prev => ({ ...prev, key: e.target.value }))}
+                    placeholder="Digite a chave PIX"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="pixType">Tipo de Chave</Label>
                   <Select
                     value={pixConfig.type}
-                    onValueChange={(value: PixKeyType) => 
-                      setPixConfig(prev => ({ ...prev, type: value }))
-                    }
+                    onValueChange={(value: PixKeyType) => setPixConfig(prev => ({ ...prev, type: value }))}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Tipo de Chave" />
+                      <SelectValue placeholder="Selecione o tipo de chave" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="cpf">CPF</SelectItem>
@@ -295,25 +317,14 @@ const PaymentsPage: React.FC = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="flex gap-2 flex-1">
-                  <Input
-                    type="text"
-                    placeholder="Informe a chave PIX para pagamentos"
-                    value={pixConfig.key}
-                    onChange={(e) => setPixConfig(prev => ({ ...prev, key: e.target.value }))}
-                    className="flex-1"
-                  />
-                  <Button 
-                    onClick={handleUpdatePixKey}
-                    variant="secondary"
-                  >
-                    Salvar
-                  </Button>
-                </div>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Esta chave PIX será exibida para todos os usuários no Dashboard.
-              </p>
+              <Button 
+                className="w-full" 
+                onClick={handleUpdatePixKey}
+                disabled={!pixConfig.key || !pixConfig.managerName}
+              >
+                Salvar Configurações do PIX
+              </Button>
             </div>
           </CardContent>
         </Card>
