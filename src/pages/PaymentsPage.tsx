@@ -32,7 +32,7 @@ const UserPaymentDialog: React.FC<{ userId: string, userName: string }> = ({ use
   const [amount, setAmount] = useState<string>('');
   const [isOpen, setIsOpen] = useState(false);
   const { toast } = useToast();
-  
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -44,6 +44,10 @@ const UserPaymentDialog: React.FC<{ userId: string, userName: string }> = ({ use
         description: "Por favor, informe um valor positivo.",
         variant: "destructive"
       });
+      return;
+    }
+
+    if (paymentAmount < 0) {
       return;
     }
     
@@ -94,17 +98,21 @@ const UserPaymentDialog: React.FC<{ userId: string, userName: string }> = ({ use
 };
 
 const PaymentsPage: React.FC = () => {
-  const { users, getUserPayments, formatCurrency, currentMonth, formatMonth, addPayment, deletePayment } = useApp();
+  const { users, getUserPayments, formatCurrency, formatMonth, addPayment, deletePayment } = useApp();
   const { checkAdminPermission } = useAuth();
+  const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().slice(0, 7)); // Format YYYY-MM
   const [paymentStatus, setPaymentStatus] = useState<UserPaymentStatus>({});
   const [monthlyAmount, setMonthlyAmount] = useState<string>('');
   const [configuredAmount, setConfiguredAmount] = useState<number>(0);
   const [monthlyConfigs, setMonthlyConfigs] = useState<MonthlyAmountConfig[]>([]);
+  const [currentMonthPayments, setCurrentMonthPayments] = useState<Payment[]>([]);
   const [pixConfig, setPixConfig] = useState<PixConfig>({ 
     key: '',
     type: 'cpf',
     managerName: ''
   });
+  const [selectedUser, setSelectedUser] = useState<string>('');
+  const [amount, setAmount] = useState<string>('');
   const { toast } = useToast();
 
   // Carregar configurações de valor mensal e PIX ao montar o componente
@@ -426,10 +434,8 @@ const PaymentsPage: React.FC = () => {
                       <TableCell>
                         {formatCurrency(getUserTotalPayments(user.id))}
                       </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end">
+                      <TableCell className="text-right flex justify-end items-center">
                           <UserPaymentDialog userId={user.id} userName={user.name} />
-                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

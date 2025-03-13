@@ -292,3 +292,7 @@ export const formatCurrency = (value: number): string => {
     currency: 'BRL'
   }).format(value);
 };
+
+export function migrateFromLocalStorage() {
+  throw new Error('Function not implemented.');
+}
