@@ -1,7 +1,7 @@
-
 import React, { useState } from 'react';
 import Layout from '@/components/Layout';
 import { useApp } from '@/contexts/AppContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,11 +13,165 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
-import { PlusIcon, TrashIcon } from 'lucide-react';
+import { PlusIcon, TrashIcon, Pencil } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { Product } from '@/types';
+
+// Componente para edição de produto
+const EditProductDialog: React.FC<{ product: Product, onSave: (updatedProduct: Product) => void }> = ({ product, onSave }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [name, setName] = useState(product.name);
+  const [price, setPrice] = useState(product.price.toString());
+  const [quantity, setQuantity] = useState(product.quantity.toString());
+  const { toast } = useToast();
+  const { checkAdminPermission } = useAuth();
+  
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const priceValue = parseFloat(price);
+    const quantityValue = parseInt(quantity);
+    
+    if (!name.trim()) {
+      toast({
+        title: "Nome inválido",
+        description: "Por favor, informe um nome para o produto.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (isNaN(priceValue) || priceValue <= 0) {
+      toast({
+        title: "Preço inválido",
+        description: "Por favor, informe um preço válido maior que zero.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (isNaN(quantityValue) || quantityValue <= 0) {
+      toast({
+        title: "Quantidade inválida",
+        description: "Por favor, informe uma quantidade válida maior que zero.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    checkAdminPermission(() => {
+      const updatedProduct = { 
+        ...product, 
+        name,
+        price: priceValue,
+        quantity: quantityValue 
+      };
+      
+      onSave(updatedProduct);
+      setIsOpen(false);
+      
+      toast({
+        title: "Produto atualizado",
+        description: `Produto atualizado com sucesso.`
+      });
+    });
+  };
+  
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Remover caracteres não numéricos, exceto vírgula e ponto
+    const value = e.target.value.replace(/[^\d.,]/g, '');
+    // Substituir vírgula por ponto para manipulação numérica
+    const numericValue = value.replace(',', '.');
+    setPrice(numericValue);
+  };
+  
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button 
+          size="sm" 
+          variant="outline"
+          onClick={() => {
+            setName(product.name);
+            setPrice(product.price.toString());
+            setQuantity(product.quantity.toString());
+            setIsOpen(true);
+          }}
+        >
+          <Pencil className="h-4 w-4" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Editar Produto</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+          <div className="space-y-2">
+            <label htmlFor="product-name" className="text-sm font-medium">
+              Nome do Produto
+            </label>
+            <Input
+              id="product-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Nome do produto"
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="product-price" className="text-sm font-medium">
+              Preço (R$)
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                R$
+              </span>
+              <Input
+                id="product-price"
+                value={price}
+                onChange={handlePriceChange}
+                className="pl-9"
+                placeholder="0.00"
+                required
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="product-quantity" className="text-sm font-medium">
+              Quantidade
+            </label>
+            <Input
+              id="product-quantity"
+              type="number"
+              min="1"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              placeholder="1"
+              required
+            />
+          </div>
+          <div className="flex justify-end space-x-2">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => setIsOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button type="submit">
+              Salvar
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 const ProductsPage: React.FC = () => {
-  const { products, addProduct, deleteProduct, formatCurrency, currentMonth } = useApp();
+  const { products, addProduct, deleteProduct, updateProduct, formatCurrency, currentMonth } = useApp();
+  const { checkAdminPermission } = useAuth();
   const [newProduct, setNewProduct] = useState({
     name: '',
     price: '',
@@ -28,14 +182,19 @@ const ProductsPage: React.FC = () => {
   // Filtrar produtos apenas para o mês atual
   const currentMonthProducts = products.filter(product => product.month === currentMonth);
   
+  // Calcular o valor total dos produtos do mês atual
+  const totalProductsValue = currentMonthProducts.reduce(
+    (total, product) => total + (product.price * product.quantity), 
+    0
+  );
+  
   const handleAddProduct = (e: React.FormEvent) => {
     e.preventDefault();
     
-    const name = newProduct.name.trim();
     const price = parseFloat(newProduct.price);
     const quantity = parseInt(newProduct.quantity);
     
-    if (!name) {
+    if (!newProduct.name.trim()) {
       toast({
         title: "Nome inválido",
         description: "Por favor, informe um nome para o produto.",
@@ -47,7 +206,7 @@ const ProductsPage: React.FC = () => {
     if (isNaN(price) || price <= 0) {
       toast({
         title: "Preço inválido",
-        description: "Por favor, informe um preço válido para o produto.",
+        description: "Por favor, informe um preço válido maior que zero.",
         variant: "destructive"
       });
       return;
@@ -56,40 +215,51 @@ const ProductsPage: React.FC = () => {
     if (isNaN(quantity) || quantity <= 0) {
       toast({
         title: "Quantidade inválida",
-        description: "Por favor, informe uma quantidade válida para o produto.",
+        description: "Por favor, informe uma quantidade válida maior que zero.",
         variant: "destructive"
       });
       return;
     }
     
-    addProduct(name, price, quantity);
-    
-    setNewProduct({
-      name: '',
-      price: '',
-      quantity: '1'
-    });
-    
-    toast({
-      title: "Produto adicionado",
-      description: `Produto "${name}" foi adicionado com sucesso.`
+    checkAdminPermission(() => {
+      addProduct(newProduct.name, price, quantity);
+      setNewProduct({
+        name: '',
+        price: '',
+        quantity: '1'
+      });
+      
+      toast({
+        title: "Produto adicionado",
+        description: `Produto "${newProduct.name}" foi adicionado com sucesso.`
+      });
     });
   };
   
   const handleDeleteProduct = (productId: string, productName: string) => {
-    deleteProduct(productId);
-    
-    toast({
-      title: "Produto removido",
-      description: `Produto "${productName}" foi removido com sucesso.`
+    checkAdminPermission(() => {
+      deleteProduct(productId);
+      
+      toast({
+        title: "Produto removido",
+        description: `Produto "${productName}" foi removido com sucesso.`
+      });
     });
   };
   
-  // Calcular o total de produtos para o mês atual
-  const totalProductsValue = currentMonthProducts.reduce(
-    (sum, product) => sum + (product.price * product.quantity),
-    0
-  );
+  const handleUpdateProduct = (updatedProduct: Product) => {
+    checkAdminPermission(() => {
+      updateProduct(updatedProduct);
+    });
+  };
+  
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Remover caracteres não numéricos, exceto vírgula e ponto
+    const value = e.target.value.replace(/[^\d.,]/g, '');
+    // Substituir vírgula por ponto para manipulação numérica
+    const numericValue = value.replace(',', '.');
+    setNewProduct({ ...newProduct, price: numericValue });
+  };
   
   return (
     <Layout title="Produtos">
@@ -98,48 +268,37 @@ const ProductsPage: React.FC = () => {
           <CardTitle>Adicionar Novo Produto</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleAddProduct} className="space-y-4">
+          <form onSubmit={handleAddProduct}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label htmlFor="name" className="text-sm font-medium block mb-1">
-                  Nome do Produto
-                </label>
+              <div className="col-span-1 md:col-span-1">
                 <Input
-                  id="name"
-                  placeholder="Café, Açúcar, etc."
+                  placeholder="Nome do produto"
                   value={newProduct.name}
                   onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
                 />
               </div>
-              <div>
-                <label htmlFor="price" className="text-sm font-medium block mb-1">
-                  Preço (R$)
-                </label>
+              <div className="col-span-1 md:col-span-1 relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  R$
+                </span>
                 <Input
-                  id="price"
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  placeholder="0.00"
+                  placeholder="Preço"
+                  className="pl-9"
                   value={newProduct.price}
-                  onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
+                  onChange={handlePriceChange}
                 />
               </div>
-              <div>
-                <label htmlFor="quantity" className="text-sm font-medium block mb-1">
-                  Quantidade
-                </label>
+              <div className="col-span-1 md:col-span-1">
                 <Input
-                  id="quantity"
                   type="number"
+                  placeholder="Quantidade"
                   min="1"
-                  step="1"
                   value={newProduct.quantity}
                   onChange={(e) => setNewProduct({ ...newProduct, quantity: e.target.value })}
                 />
               </div>
             </div>
-            <Button type="submit" className="w-full md:w-auto">
+            <Button type="submit" className="w-full md:w-auto mt-4">
               <PlusIcon className="h-4 w-4 mr-2" />
               Adicionar Produto
             </Button>
@@ -162,7 +321,7 @@ const ProductsPage: React.FC = () => {
                   <TableHead>Nome</TableHead>
                   <TableHead className="text-right">Preço</TableHead>
                   <TableHead className="text-right">Quantidade</TableHead>
-                  <TableHead className="text-right">Subtotal</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -172,17 +331,18 @@ const ProductsPage: React.FC = () => {
                     <TableCell>{product.name}</TableCell>
                     <TableCell className="text-right">{formatCurrency(product.price)}</TableCell>
                     <TableCell className="text-right">{product.quantity}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(product.price * product.quantity)}</TableCell>
                     <TableCell className="text-right">
-                      {formatCurrency(product.price * product.quantity)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        size="icon"
-                        variant="destructive"
-                        onClick={() => handleDeleteProduct(product.id, product.name)}
-                      >
-                        <TrashIcon className="h-4 w-4" />
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <EditProductDialog product={product} onSave={handleUpdateProduct} />
+                        <Button 
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDeleteProduct(product.id, product.name)}
+                        >
+                          <TrashIcon className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

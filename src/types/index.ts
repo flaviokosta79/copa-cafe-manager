@@ -32,3 +32,10 @@ export interface MonthlyAmountConfig {
   month: string;
   amount: number;
 }
+
+export type PixKeyType = 'cpf' | 'celular' | 'email' | 'aleatoria';
+
+export interface PixConfig {
+  key: string;
+  type: PixKeyType;
+}

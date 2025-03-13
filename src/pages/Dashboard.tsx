@@ -1,9 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import { useApp } from '@/contexts/AppContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowUpIcon, ArrowDownIcon, DollarSign, ShoppingBag, Users, CreditCard, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowUpIcon, ArrowDownIcon, DollarSign, ShoppingBag, Users, CreditCard, CheckCircle, XCircle, Copy } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import * as apiService from '@/services/apiService';
+import { PixConfig } from '@/types';
+
+const PIX_TYPE_LABELS = {
+  cpf: 'CPF',
+  celular: 'Celular',
+  email: 'Email',
+  aleatoria: 'Chave Aleatória'
+};
 
 const Dashboard: React.FC = () => {
   const { 
@@ -17,7 +28,9 @@ const Dashboard: React.FC = () => {
     setCurrentMonth,
     getUserPayments
   } = useApp();
-  
+  const { toast } = useToast();
+  const [pixConfig, setPixConfig] = useState<PixConfig>({ key: '', type: 'cpf' });
+
   // Debug: Imprimir estado inicial
   console.log('Estado inicial:', {
     users: users.length,
@@ -27,91 +40,53 @@ const Dashboard: React.FC = () => {
     currentMonth
   });
 
-  // Verificar se há dados ativos no sistema
-  const hasActiveData = users.length > 0 || payments.length > 0;
-  console.log('hasActiveData:', hasActiveData);
-  
-  // Encontrar o saldo do mês atual (apenas se houver dados ativos)
-  const currentMonthBalance = monthlyBalances.find(balance => balance.month === currentMonth);
-  console.log('currentMonthBalance:', currentMonthBalance);
-  
-  // Calcular totaais diretamente dos pagamentos e produtos
-  console.log('Calculando totais...');
-  console.log('Array de pagamentos:', JSON.stringify(payments, null, 2));
-  
-  const totalPayments = payments
-    .filter(payment => {
-      const isCurrentMonth = payment.month === currentMonth;
-      console.log(`Verificando pagamento ${payment.id}:`, {
-        month: payment.month,
-        currentMonth,
-        isCurrentMonth,
-        amount: payment.amount
-      });
-      return isCurrentMonth;
-    })
-    .reduce((sum, payment) => {
-      console.log(`Somando pagamento ${payment.id}:`, payment.amount);
-      return sum + payment.amount;
-    }, 0);
+  // Carregar configuração do PIX
+  useEffect(() => {
+    const loadPixConfig = async () => {
+      const adminConfig = await apiService.getAdminConfig();
+      if (adminConfig.pix) {
+        setPixConfig(adminConfig.pix);
+      }
+    };
+    loadPixConfig();
+  }, []);
 
-  console.log('Total final de pagamentos:', totalPayments);
-
-  const totalProducts = products
-    .filter(product => {
-      const isCurrentMonth = product.month === currentMonth;
-      console.log(`Verificando produto ${product.id}:`, {
-        month: product.month,
-        currentMonth,
-        isCurrentMonth,
-        total: product.price * product.quantity
-      });
-      return isCurrentMonth;
-    })
-    .reduce((sum, product) => {
-      console.log(`Somando produto ${product.id}:`, product.price * product.quantity);
-      return sum + (product.price * product.quantity);
-    }, 0);
-
-  console.log('Total final de produtos:', totalProducts);
-
-  // Calcular totais diretamente dos pagamentos e produtos
+  // Cálculos
   const totalUsers = users.length;
-  console.log('Total de usuários:', totalUsers);
-  
-  const payingUsers = users.filter(user => {
-    const hasPayments = getUserPayments(user.id, currentMonth).length > 0;
-    console.log(`Verificando pagamentos do usuário ${user.id}:`, {
-      name: user.name,
-      hasPayments,
-      payments: getUserPayments(user.id, currentMonth)
-    });
-    return hasPayments;
-  }).length;
-  
-  console.log('Usuários pagantes:', payingUsers);
+  const payingUsers = users.filter(user => getUserPayments(user.id, currentMonth).length > 0).length;
   const nonPayingUsers = totalUsers - payingUsers;
-  console.log('Usuários não pagantes:', nonPayingUsers);
-
-  // Calcular o saldo com base nos totais calculados
+  const totalPayments = payments
+    .filter(payment => payment.month === currentMonth)
+    .reduce((acc, curr) => acc + curr.amount, 0);
+  const totalProducts = products
+    .filter(product => product.month === currentMonth)
+    .reduce((acc, curr) => acc + (curr.price * curr.quantity), 0);
   const balance = totalPayments - totalProducts;
-  console.log('Saldo final:', balance);
-  
-  // Lista de meses disponíveis (atuais e anteriores)
-  const availableMonths = Array.from(new Set([
-    ...monthlyBalances.map(balance => balance.month),
-    currentMonth
-  ])).sort().reverse();
+
+  // Ordenar meses em ordem decrescente
+  const sortedMonths = [...monthlyBalances]
+    .sort((a, b) => b.month.localeCompare(a.month))
+    .map(mb => mb.month);
+
+  const handleCopyPix = () => {
+    navigator.clipboard.writeText(pixConfig.key);
+    toast({
+      description: "Chave PIX copiada para a área de transferência!"
+    });
+  };
 
   return (
     <Layout title="Dashboard">
-      <div className="mb-4 flex justify-end">
-        <Select value={currentMonth} onValueChange={setCurrentMonth}>
+      <div className="mb-6">
+        <Select
+          value={currentMonth}
+          onValueChange={setCurrentMonth}
+        >
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Selecione o mês" />
           </SelectTrigger>
           <SelectContent>
-            {availableMonths.map(month => (
+            {sortedMonths.map(month => (
               <SelectItem key={month} value={month}>
                 {formatMonth(month)}
               </SelectItem>
@@ -176,7 +151,7 @@ const Dashboard: React.FC = () => {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Saldo Total
+              Saldo Restante
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -246,6 +221,31 @@ const Dashboard: React.FC = () => {
             ) : (
               <p className="text-muted-foreground">Nenhum histórico disponível.</p>
             )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Chave PIX do Gerente</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col items-center space-y-4 p-4 border rounded">
+              <div className="flex items-center gap-2">
+                <span className="text-lg text-muted-foreground">{PIX_TYPE_LABELS[pixConfig.type]}:</span>
+              </div>
+              <div className="flex items-center gap-4">
+                <span className="text-lg font-medium">{pixConfig.key}</span>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleCopyPix}
+                  className="gap-2"
+                >
+                  <Copy className="h-4 w-4" />
+                  Copiar
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>

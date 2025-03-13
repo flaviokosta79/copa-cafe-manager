@@ -1,18 +1,18 @@
 [
   {
-    "id": "aaa02bdb-0dfe-4dff-af13-ae818b896941",
+    "id": "e6912a11-fce2-4cea-a2c4-b32cd62015d4",
     "name": "Café",
     "price": 25,
     "quantity": 4,
-    "date": "2025-03-12T20:26:08.541Z",
+    "date": "2025-03-13T01:10:54.376Z",
     "month": "2025-03"
   },
   {
-    "id": "dbb890d3-bd11-446e-a105-5d0af5b92330",
-    "name": "Açucar",
+    "id": "290f2dd9-160a-427e-8904-15efdc5cc568",
+    "name": "Açúcar",
     "price": 4,
     "quantity": 5,
-    "date": "2025-03-12T20:26:36.227Z",
+    "date": "2025-03-13T01:14:52.975Z",
     "month": "2025-03"
   }
 ]

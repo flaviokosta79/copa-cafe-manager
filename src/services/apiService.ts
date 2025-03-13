@@ -1,6 +1,6 @@
 import { User, Payment, Product, MonthlyBalance, MonthlyAmountConfig } from '@/types';
 
-const API_URL = 'http://localhost:3001/api';
+const API_URL = 'http://localhost:3002/api';
 
 // Funções para gerenciar usuários
 export const getUsers = async (): Promise<User[]> => {
@@ -226,27 +226,45 @@ export const updateMonthlyAmountConfig = async (config: MonthlyAmountConfig): Pr
   }
 };
 
-// Função para migrar dados do localStorage para o sistema de arquivos
-export const migrateFromLocalStorage = async (): Promise<boolean> => {
+// Funções para gerenciar configurações do administrador
+export const verifyAdminPassword = async (password: string): Promise<boolean> => {
   try {
-    // Recupere os dados do localStorage
-    const users = JSON.parse(localStorage.getItem('copa-cafe-users') || '[]');
-    const payments = JSON.parse(localStorage.getItem('copa-cafe-payments') || '[]');
-    const products = JSON.parse(localStorage.getItem('copa-cafe-products') || '[]');
-    const monthlyBalances = JSON.parse(localStorage.getItem('copa-cafe-monthly-balance') || '[]');
-    
-    // Envie os dados para o servidor
-    const response = await fetch(`${API_URL}/migrate-from-localstorage`, {
+    const response = await fetch(`${API_URL}/verify-admin`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ users, payments, products, monthlyBalances })
+      body: JSON.stringify({ password })
     });
-    
-    if (!response.ok) throw new Error('Falha ao migrar dados');
-    
+    if (!response.ok) throw new Error('Falha ao verificar senha de administrador');
+    const data = await response.json();
+    return data.success;
+  } catch (error) {
+    console.error('Erro ao verificar senha de administrador:', error);
+    return false;
+  }
+};
+
+export const getAdminConfig = async (): Promise<{ adminPassword: string, pix: { key: string, type: 'cpf' | 'celular' | 'email' | 'aleatoria' } }> => {
+  try {
+    const response = await fetch(`${API_URL}/admin-config`);
+    if (!response.ok) throw new Error('Falha ao obter configurações do administrador');
+    return response.json();
+  } catch (error) {
+    console.error('Erro ao buscar configurações do administrador:', error);
+    return { adminPassword: "", pix: { key: "", type: "cpf" } };
+  }
+};
+
+export const updateAdminConfig = async (config: { pix: { key: string, type: 'cpf' | 'celular' | 'email' | 'aleatoria' } }): Promise<boolean> => {
+  try {
+    const response = await fetch(`${API_URL}/admin-config`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config)
+    });
+    if (!response.ok) throw new Error('Falha ao atualizar configurações do administrador');
     return true;
   } catch (error) {
-    console.error('Erro ao migrar dados:', error);
+    console.error('Erro ao atualizar configurações do administrador:', error);
     return false;
   }
 };

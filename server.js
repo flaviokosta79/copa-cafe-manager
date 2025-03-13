@@ -5,9 +5,8 @@ const path = require('path');
 const cors = require('cors');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3002;
 const NODE_ENV = process.env.NODE_ENV || 'development';
-
 // Middlewares
 app.use(cors());
 app.use(bodyParser.json());
@@ -28,9 +27,10 @@ const USERS_FILE = path.join(DB_FOLDER, 'users.json');
 const PAYMENTS_FILE = path.join(DB_FOLDER, 'payments.json');
 const PRODUCTS_FILE = path.join(DB_FOLDER, 'products.json');
 const MONTHLY_BALANCE_FILE = path.join(DB_FOLDER, 'monthly-balances.json');
-
 // Adicionar novo caminho para o arquivo de configuração de valor mensal
 const MONTHLY_AMOUNT_CONFIG_FILE = path.join(DB_FOLDER, 'monthly-amount-config.json');
+// Adicionar novo caminho para o arquivo de configuração de administrador
+const ADMIN_CONFIG_FILE = path.join(DB_FOLDER, 'admin-config.json');
 
 // Funções auxiliares para manipular arquivos
 const readJsonFile = (filePath) => {
@@ -85,9 +85,106 @@ app.get('/api', (req, res) => {
       },
       migration: {
         POST: '/api/migrate-from-localstorage'
+      },
+      auth: {
+        POST: '/api/verify-admin'
       }
     }
   });
+});
+
+// Nova rota para obter configurações do administrador (sem a senha)
+app.get('/api/admin-config', (req, res) => {
+  try {
+    // Leia o arquivo de configuração do administrador
+    let adminConfig = {};
+    if (fs.existsSync(ADMIN_CONFIG_FILE)) {
+      const data = fs.readFileSync(ADMIN_CONFIG_FILE, 'utf8');
+      adminConfig = JSON.parse(data);
+      
+      // Se não tiver configuração de PIX, inicializa com valores padrão
+      if (!adminConfig.pix) {
+        adminConfig.pix = { key: "", type: "cpf" };
+      }
+      // Se tiver só a string do PIX, converte para o novo formato
+      else if (typeof adminConfig.pix === 'string') {
+        adminConfig.pix = { key: adminConfig.pix, type: "cpf" };
+      }
+      
+      // Retorna uma cópia sem a senha
+      const { adminPassword, ...safeConfig } = adminConfig;
+      res.json(safeConfig);
+    } else {
+      res.json({ pix: { key: "", type: "cpf" } });
+    }
+  } catch (error) {
+    console.error('Erro ao obter configurações do administrador:', error);
+    res.status(500).json({ error: 'Erro interno ao obter configurações' });
+  }
+});
+
+// Nova rota para atualizar configurações do administrador
+app.post('/api/admin-config', (req, res) => {
+  try {
+    const { pix } = req.body;
+    
+    // Valida o tipo do PIX
+    const validTypes = ['cpf', 'celular', 'email', 'aleatoria'];
+    if (!pix || !pix.key || !pix.type || !validTypes.includes(pix.type)) {
+      return res.status(400).json({ error: 'Configuração de PIX inválida' });
+    }
+    
+    // Leia o arquivo de configuração do administrador
+    let adminConfig = {};
+    if (fs.existsSync(ADMIN_CONFIG_FILE)) {
+      const data = fs.readFileSync(ADMIN_CONFIG_FILE, 'utf8');
+      adminConfig = JSON.parse(data);
+    } else {
+      adminConfig = { adminPassword: "abc123" };
+    }
+    
+    // Atualize a configuração do PIX
+    adminConfig.pix = pix;
+    
+    // Salve as alterações
+    if (writeJsonFile(ADMIN_CONFIG_FILE, adminConfig)) {
+      res.json({ success: true });
+    } else {
+      res.status(500).json({ error: 'Falha ao salvar as configurações' });
+    }
+  } catch (error) {
+    console.error('Erro ao atualizar configurações:', error);
+    res.status(500).json({ error: 'Erro interno ao atualizar configurações' });
+  }
+});
+
+// Remover a rota antiga de update-pix que não é mais necessária
+// app.post('/api/update-pix', ...);
+
+// Nova rota para verificar senha de administrador
+app.post('/api/verify-admin', (req, res) => {
+  try {
+    const { password } = req.body;
+    
+    // Leia o arquivo de configuração do administrador
+    let adminConfig = {};
+    if (fs.existsSync(ADMIN_CONFIG_FILE)) {
+      const data = fs.readFileSync(ADMIN_CONFIG_FILE, 'utf8');
+      adminConfig = JSON.parse(data);
+    } else {
+      // Se o arquivo não existir, cria com a senha padrão
+      adminConfig = { adminPassword: "abc123" };
+      writeJsonFile(ADMIN_CONFIG_FILE, adminConfig);
+    }
+    
+    // Verifica a senha
+    const isValid = password === adminConfig.adminPassword;
+    
+    res.json({ success: isValid });
+  } catch (error) {
+    console.error('Erro ao verificar senha de administrador:', error);
+    res.status(500).json({ error: 'Erro interno ao verificar senha' });
+  }
 });
 
 // Rotas para usuários

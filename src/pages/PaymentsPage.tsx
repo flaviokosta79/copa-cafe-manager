@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '@/components/Layout';
 import { useApp } from '@/contexts/AppContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Table, 
   TableBody, 
@@ -13,11 +15,11 @@ import {
   TableHeader, 
   TableRow 
 } from '@/components/ui/table';
-import { DollarSign, CheckCircle, History } from 'lucide-react';
+import { DollarSign, CheckCircle, History, Wallet } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import * as apiService from '@/services/apiService';
-import { MonthlyAmountConfig } from '@/types';
+import { MonthlyAmountConfig, PixConfig, PixKeyType } from '@/types';
 
 interface UserPaymentStatus {
   [userId: string]: boolean;
@@ -25,6 +27,7 @@ interface UserPaymentStatus {
 
 const UserPaymentDialog: React.FC<{ userId: string, userName: string }> = ({ userId, userName }) => {
   const { addPayment, formatCurrency } = useApp();
+  const { checkAdminPermission } = useAuth();
   const [amount, setAmount] = useState<string>('');
   const [isOpen, setIsOpen] = useState(false);
   const { toast } = useToast();
@@ -43,13 +46,15 @@ const UserPaymentDialog: React.FC<{ userId: string, userName: string }> = ({ use
       return;
     }
     
-    addPayment(userId, paymentAmount);
-    setAmount('');
-    setIsOpen(false);
-    
-    toast({
-      title: "Pagamento registrado",
-      description: `Pagamento de ${formatCurrency(paymentAmount)} para ${userName} foi registrado com sucesso.`
+    checkAdminPermission(() => {
+      addPayment(userId, paymentAmount);
+      setAmount('');
+      setIsOpen(false);
+      
+      toast({
+        title: "Pagamento registrado",
+        description: `Pagamento de ${formatCurrency(paymentAmount)} para ${userName} foi registrado com sucesso.`
+      });
     });
   };
   
@@ -89,15 +94,17 @@ const UserPaymentDialog: React.FC<{ userId: string, userName: string }> = ({ use
 
 const PaymentsPage: React.FC = () => {
   const { users, getUserPayments, formatCurrency, currentMonth, formatMonth, addPayment, deletePayment } = useApp();
+  const { checkAdminPermission } = useAuth();
   const [paymentStatus, setPaymentStatus] = useState<UserPaymentStatus>({});
   const [monthlyAmount, setMonthlyAmount] = useState<string>('');
   const [configuredAmount, setConfiguredAmount] = useState<number>(0);
   const [monthlyConfigs, setMonthlyConfigs] = useState<MonthlyAmountConfig[]>([]);
+  const [pixConfig, setPixConfig] = useState<PixConfig>({ key: '', type: 'cpf' });
   const { toast } = useToast();
 
-  // Carregar configurações de valor mensal ao montar o componente
+  // Carregar configurações de valor mensal e PIX ao montar o componente
   useEffect(() => {
-    const loadMonthlyConfigs = async () => {
+    const loadConfigs = async () => {
       const configs = await apiService.getMonthlyAmountConfigs();
       setMonthlyConfigs(configs);
       
@@ -107,9 +114,15 @@ const PaymentsPage: React.FC = () => {
         setConfiguredAmount(currentConfig.amount);
         setMonthlyAmount(currentConfig.amount.toFixed(2));
       }
+
+      // Carregar chave PIX
+      const adminConfig = await apiService.getAdminConfig();
+      if (adminConfig.pix) {
+        setPixConfig(adminConfig.pix);
+      }
     };
     
-    loadMonthlyConfigs();
+    loadConfigs();
   }, [currentMonth]);
 
   React.useEffect(() => {
@@ -124,24 +137,58 @@ const PaymentsPage: React.FC = () => {
   }, [users, getUserPayments, currentMonth]);
 
   const handleTogglePaymentStatus = (userId: string, userName: string, currentStatus: boolean) => {
-    const newStatus = !currentStatus;
-    setPaymentStatus(prev => ({
-      ...prev,
-      [userId]: newStatus
-    }));
-
-    if (!newStatus) {
-      // Se o status está mudando para "Pendente", remove todos os pagamentos do mês atual
-      const userPayments = getUserPayments(userId, currentMonth);
-      userPayments.forEach(payment => {
-        deletePayment(payment.id);
-      });
-
-      toast({
-        title: "Pagamentos removidos",
-        description: `Os pagamentos de ${userName} foram removidos.`
-      });
-    }
+    checkAdminPermission(() => {
+      const newStatus = !currentStatus;
+      setPaymentStatus(prev => ({
+        ...prev,
+        [userId]: newStatus
+      }));
+  
+      if (newStatus) {
+        // Se o status está mudando para "Pago", adiciona um pagamento do valor mensal configurado
+        if (configuredAmount > 0) {
+          // Primeiro verificamos se já existe um pagamento para este mês
+          const userPayments = getUserPayments(userId, currentMonth);
+          
+          // Se não houver pagamentos ou o total for diferente do valor configurado
+          // então registramos um novo pagamento
+          const totalPaid = userPayments.reduce((total, payment) => total + payment.amount, 0);
+          if (userPayments.length === 0 || totalPaid !== configuredAmount) {
+            // Se já existe algum pagamento, removemos para não duplicar
+            if (userPayments.length > 0) {
+              userPayments.forEach(payment => {
+                deletePayment(payment.id);
+              });
+            }
+            
+            // Adicionamos o pagamento com o valor mensal configurado
+            addPayment(userId, configuredAmount);
+            
+            toast({
+              title: "Pagamento registrado",
+              description: `Pagamento de ${formatCurrency(configuredAmount)} para ${userName} foi registrado.`
+            });
+          }
+        } else {
+          toast({
+            title: "Valor mensal não configurado",
+            description: "Configure um valor mensal antes de marcar como pago.",
+            variant: "destructive"
+          });
+        }
+      } else {
+        // Se o status está mudando para "Pendente", remove todos os pagamentos do mês atual
+        const userPayments = getUserPayments(userId, currentMonth);
+        userPayments.forEach(payment => {
+          deletePayment(payment.id);
+        });
+  
+        toast({
+          title: "Pagamentos removidos",
+          description: `Os pagamentos de ${userName} foram removidos.`
+        });
+      }
+    });
   };
 
   const getUserTotalPayments = (userId: string): number => {
@@ -158,25 +205,27 @@ const PaymentsPage: React.FC = () => {
   const handleApplyMonthlyAmount = async () => {
     const amount = parseFloat(monthlyAmount);
     if (!isNaN(amount) && amount > 0) {
-      // Salvar a configuração no servidor
-      const newConfig: MonthlyAmountConfig = {
-        month: currentMonth,
-        amount: amount
-      };
-      
-      const savedConfig = await apiService.updateMonthlyAmountConfig(newConfig);
-      if (savedConfig) {
-        setConfiguredAmount(amount);
+      checkAdminPermission(async () => {
+        // Salvar a configuração no servidor
+        const newConfig: MonthlyAmountConfig = {
+          month: currentMonth,
+          amount: amount
+        };
         
-        // Atualizar a lista de configurações
-        const configs = await apiService.getMonthlyAmountConfigs();
-        setMonthlyConfigs(configs);
-        
-        toast({
-          title: "Valor mensal configurado",
-          description: `O valor mensal foi configurado para ${formatCurrency(amount)}`
-        });
-      }
+        const savedConfig = await apiService.updateMonthlyAmountConfig(newConfig);
+        if (savedConfig) {
+          setConfiguredAmount(amount);
+          
+          // Atualizar a lista de configurações
+          const configs = await apiService.getMonthlyAmountConfigs();
+          setMonthlyConfigs(configs);
+          
+          toast({
+            title: "Valor mensal configurado",
+            description: `O valor mensal foi configurado para ${formatCurrency(amount)}`
+          });
+        }
+      });
     } else {
       toast({
         title: "Valor inválido",
@@ -186,9 +235,89 @@ const PaymentsPage: React.FC = () => {
     }
   };
 
+  const handleUpdatePixKey = async () => {
+    if (!pixConfig.key.trim()) {
+      toast({
+        title: "Chave PIX inválida",
+        description: "Por favor, informe uma chave PIX válida.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    checkAdminPermission(async () => {
+      const success = await apiService.updateAdminConfig({
+        pix: pixConfig
+      });
+      if (success) {
+        toast({
+          title: "Chave PIX atualizada",
+          description: "A chave PIX foi atualizada com sucesso."
+        });
+      } else {
+        toast({
+          title: "Erro ao atualizar chave PIX",
+          description: "Não foi possível atualizar a chave PIX. Tente novamente.",
+          variant: "destructive"
+        });
+      }
+    });
+  };
+
   return (
     <Layout title="Pagamentos">
       <div className="grid gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Wallet className="h-5 w-5" />
+              Chave PIX do Gerente
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col gap-4">
+              <div className="flex gap-4">
+                <div className="w-48">
+                  <Select
+                    value={pixConfig.type}
+                    onValueChange={(value: PixKeyType) => 
+                      setPixConfig(prev => ({ ...prev, type: value }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Tipo de Chave" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cpf">CPF</SelectItem>
+                      <SelectItem value="celular">Celular</SelectItem>
+                      <SelectItem value="email">Email</SelectItem>
+                      <SelectItem value="aleatoria">Chave Aleatória</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex gap-2 flex-1">
+                  <Input
+                    type="text"
+                    placeholder="Informe a chave PIX para pagamentos"
+                    value={pixConfig.key}
+                    onChange={(e) => setPixConfig(prev => ({ ...prev, key: e.target.value }))}
+                    className="flex-1"
+                  />
+                  <Button 
+                    onClick={handleUpdatePixKey}
+                    variant="secondary"
+                  >
+                    Salvar
+                  </Button>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Esta chave PIX será exibida para todos os usuários no Dashboard.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle>Valor Mensal</CardTitle>
